@@ -16,8 +16,8 @@
             display: flex;
             align-items: center;
             flex-direction: column;
-            width: min(70vh, 80%);
-            max-width: 600px;
+            width: 80%;
+            max-width: 1800px;
             height: 100%;
         }
         canvas {
@@ -49,7 +49,7 @@
 </head>
 <body>
     <div id="container">
-        <canvas id="pongCanvas" width="800" height="800"></canvas>
+        <canvas id="pongCanvas" width="1600" height="800"></canvas>
         <div id="score"></div>
         <p id="made">
             made by
@@ -64,9 +64,11 @@
         const scoreElement = document.getElementById("score");
 
         const SQUARE_SIZE = 25;
-        const MIN_SPEED = 4;
-        const MAX_SPEED = 10;
+        const MIN_SPEED = 16;
+        const MAX_SPEED = 20;
         const NUM_BALLS = 9;
+        const STUCK_THRESHOLD = SQUARE_SIZE * 2; // Threshold to detect if a ball is stuck
+        const STUCK_FRAMES = 30; // Number of frames to check for stuck detection
 
         const numSquaresX = canvas.width / SQUARE_SIZE;
         const numSquaresY = canvas.height / SQUARE_SIZE;
@@ -84,6 +86,7 @@
                 dy: (Math.random() * (MAX_SPEED - MIN_SPEED) + MIN_SPEED) * (Math.random() < 0.5 ? -1 : 1),
                 ballColor: ballColor,
                 reverseColor: colorPaletteInverted(ballColor),
+                lastPositions: [],
             };
         });
 
@@ -167,6 +170,31 @@
             if (Math.abs(ball.dy) < MIN_SPEED) ball.dy = ball.dy > 0 ? MIN_SPEED : -MIN_SPEED;
         }
 
+        function checkIfStuck(ball) {
+            ball.lastPositions.push({ x: ball.x, y: ball.y });
+            if (ball.lastPositions.length > STUCK_FRAMES) {
+                ball.lastPositions.shift();
+                
+                const minX = Math.min(...ball.lastPositions.map(pos => pos.x));
+                const maxX = Math.max(...ball.lastPositions.map(pos => pos.x));
+                const minY = Math.min(...ball.lastPositions.map(pos => pos.y));
+                const maxY = Math.max(...ball.lastPositions.map(pos => pos.y));
+                
+                const dx = maxX - minX;
+                const dy = maxY - minY;
+                
+                if (dx < STUCK_THRESHOLD && dy < STUCK_THRESHOLD) {
+                    // Resolve stuck ball by adjusting position and speed
+                    ball.x = Math.random() * canvas.width / 2 + canvas.width / 4;
+                    ball.y = Math.random() * canvas.height / 2 + canvas.height / 4;
+                    ball.dx = (Math.random() * (MAX_SPEED - MIN_SPEED) + MIN_SPEED) * (Math.random() < 0.5 ? -1 : 1);
+                    ball.dy = (Math.random() * (MAX_SPEED - MIN_SPEED) + MIN_SPEED) * (Math.random() < 0.5 ? -1 : 1);
+                    ball.lastPositions = [];
+                }
+            }
+        }
+
+
         function draw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             drawSquares();
@@ -179,8 +207,8 @@
                 checkBoundaryCollision(ball);
                 ball.x += ball.dx;
                 ball.y += ball.dy;
-
                 addRandomness(ball);
+                checkIfStuck(ball);
             });
 
             requestAnimationFrame(draw);
